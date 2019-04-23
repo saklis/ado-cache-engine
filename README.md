@@ -162,6 +162,27 @@ var userToDelete = engine.Item<User>().Entities.Single(u => u.Id = 42);
 engine.Item<User>().Delete(userToDelete);
 ```
 
+## Indexes and Dictionaries
+Indexes and Dictionaries are used in ACE for pre-aggregation of data. They allow you define Properties that will be used as aggregation keys and then such construction can be accessed for very fast data search. In a way, they work similiar to Indexes in SQL, but are implemented using Dictionary<TKey, TValue> structures. There's very little difference between Indexes and Dictionaries in ACE, with Dictionary being basically a special case of Index that's optimized to be used for unique Properties, such as [Key] attributes.
+
+### Creating and using an Index
+To create and Index you can use BuildIndex() method that's a member of ADO Cache Item. As a parameter this method accepts name of property you want to create aggregation on.
+```c#
+engine.Item<User>().BuildIndex(nameof(User.Name));
+```
+Mind that this operation, same as loading methods, can be time consuming.
+
+With Index created, it'll be automatically kept up do date with any changes done to the cached items.
+To find cached items with Index use FindInIndex() method, which takes name of Property and value as parameters.
+```c#
+var items = engine.Item<User>().FindInIndex(nameof(User.Name), "Adams");
+```
+
+FindInIndex() method returns List of objects in which the Indexed Property have provided value.
+
+### Creating and using Dictionaries
+Dictionaries are special case of Indexes, that can be used in situations when aggregation is performed on unique values, such as keys. Dictionaries are created using `BuildDictionary` method and searched using method `FindInDictionary`.
+
 ## Third party code
 * For parsing expression trees into SQL WHERE clauses I used the code from Ryan Ohs published on his blog.
 You can find the post here: http://ryanohs.com/2016/04/generating-sql-from-expression-trees-part-2/
