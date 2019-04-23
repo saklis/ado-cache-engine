@@ -14,13 +14,13 @@ ACE can be used as your standard ORM, but it main strength lies in storing data 
 * Live write operation on DB - Engine reflects any changes done on its items to the database, ensuring they're up to date.
 * Indexing functionality for faster querying.
 * Can work in non-cache mode if you really try.
-* Automatic generation of model classes using T4 scripts through [ACE ADO Cache Engine model generation](https://github.com/saklis/ace-model-generation)
+* Automatic generation of model classes using T4 scripts through [ACE ADO Cache Engine model generation](https://github.com/saklis/ace-model-generation).
 
 ## Compatibilty
 * C# 7.0 and greater
 * MS SQL Server 2008 R2 and greater (older version was not tested, but should be compatibile)
 
-## Engine
+## Getting started with Cache Engine
 The Engine object is responsible for holding Cache items. One Engine object can handle up to one database and contains methods to create and remove new cached items (tables).
 
 ### Creating new Engine instance
@@ -69,47 +69,65 @@ public partial class User  : AdoCacheEntity {
         }
     }
 
-    [CurrentValueField("Password")]
-    protected System.String _Password_current;
-    [NewValueField("Password")]
-    protected System.String _Password_new;
-    public System.String Password { 
-        get => _Password_current;
-        set {
-            if (IsManagedByCacheEngine) _Password_new = value;
-            else _Password_current = value;
-        }
-    }
-
-    [CurrentValueField("Enabled")]
-    protected System.Boolean _Enabled_current;
-    [NewValueField("Enabled")]
-    protected System.Boolean _Enabled_new;
-    public System.Boolean Enabled { 
-        get => _Enabled_current;
-        set {
-            if (IsManagedByCacheEngine) _Enabled_new = value;
-            else _Enabled_current = value;
-        }
-    }
-
     protected override void CopyNewValues(){
         _Id_current = _Id_new;
-        _Name_current = _Name_new;
-        _Password_current = _Password_new;
-        _Enabled_current = _Enabled_new;
+	_Name_current = _Name_new;
     }
 
     public override void UndoPendingChanges(){
         _Id_new = _Id_current;
-        _Name_new = _Name_current;
-        _Password_new = _Password_current;
-        _Enabled_new = _Enabled_current;
-	}
+	_Name_new = _Name_current;
+    }
 }
 ```
 
+### Cache Item creation
+To create new ADO Cache Item associated with created Engine instance you can use CreateItem method. 
+```c#
+engine.CreateItem<User>();
+```
 
+You can create as many Cache Items as you need (or your host's memory allows) as long as all are based on different classes.
+
+At this point you can also configure newly created Item by using `AdoCacheItemOptions` object.
+```c#
+engine.CreateCache<Order>(new AdoCacheItemOptions {
+    OverrideTableName = "DifferentTableName", // Replace default table name declared in the model with this
+    EnableReadOnlyColumnsSupport = true // Enable support for columns/properties marked with [ReadOnly] attribute
+});
+```
+
+### Accessing created Item.
+To access any of the created items use Item() method.
+```c#
+var item = engine.Item<User>();
+```
+
+You can also create reference to it directly from CreateItem().
+```c#
+var item = engine.CreateItem<User>();
+```
+
+### Loading data to cache.
+By default, cache doesn't contain any data. There are couple of ways of loading data and they all serve a bit different purpose.
+
+The most common example will be just loading all data for caching purposes.
+```c#
+engine.CreateItem<User>().LoadAll();
+```
+
+You may also use simple lambda expressions to load only subset of data, like for example only users that name starts with 'S'.
+```c#
+engine.CreateItem<User>.LoadWhere(u => u.Name.StartsWith("S"));
+```
+
+Last but not least, in case you need to load only data that is in relation with another Item, you can use LoadRelatedWith() method.
+```c#
+engine.CreateItem<Group>.LoadWhere(g => g.Name == "Admins");
+var groupItem = engine.Item<Group>();
+
+engine.CreateItem<User>().LoadRelatedWith(groupItem, (user, group) => {user.Id == group.MemberId});
+```
 
 ## Third party code
 * For parsing expression trees into SQL WHERE clauses I used the code from Ryan Ohs published on his blog.
