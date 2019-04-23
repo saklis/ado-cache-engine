@@ -183,6 +183,9 @@ FindInIndex() method returns List of objects in which the Indexed Property have 
 ### Creating and using Dictionaries
 Dictionaries are special case of Indexes, that can be used in situations when aggregation is performed on unique values, such as keys. Dictionaries are created using `BuildDictionary` method and searched using method `FindInDictionary`.
 
+## Concurrency
+In case of concurent operations, you can use `ConcurrentAdoCacheEngine` and `ConcurrentAdoCacheItem` for simple lock-based solution.
+
 ## Third party code
 * For parsing expression trees into SQL WHERE clauses I used the code from Ryan Ohs published on his blog.
 You can find the post here: http://ryanohs.com/2016/04/generating-sql-from-expression-trees-part-2/
