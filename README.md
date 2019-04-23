@@ -129,6 +129,39 @@ var groupItem = engine.Item<Group>();
 engine.CreateItem<User>().LoadRelatedWith(groupItem, (user, group) => {user.Id == group.MemberId});
 ```
 
+## CRUD operations
+Using Cache Item member methods you can edit data existing already in cache, add new and remove old objects/records. Any changes you make in Cached Item will be mirrored into connected database. This includes even the instance that have no data loaded.
+
+### INSERT - add new objects to cache
+To add new object to cache you should just create new instance of model class, set all required properties and then call Insert() method that is part of proper Item object.
+```c#
+var newUser = new User { Name = "Brian" };
+var insertedUser = engine.Item<User>().Insert(newUser);
+```
+
+In this example insertedUser holds a reference to an object that is part of cache, while newUser can be safelly discraded. Also, as in this example property Id is marked with [AutoIncrement] attribute, Cache Engine will assign value to the property, which you can check in insertedUser object.
+
+### SELECT - read existing objects
+To gain access to collection of already existing entities in the cache you can refer to Entities List that's part of Cache Item.
+```c#
+var objects = engine.Item<User>().Entities
+```
+
+### UPDATE - change existing data
+Before you can edit any data you need to get an object that is actually part of the Cached Item. After that editing and updating data happen similiary to inserting new object.
+```c#
+var userToUpdate = engine.Item<User>().Entities.Single(u => u.Id = 42);
+userToUpdate.Name = "Adams";
+engine.Item<User>().Update(userToUpdate);
+```
+
+### DELETE - removing existing data
+Removing data is similiar to Updating. It's advised to not mix those two, though...
+```c#
+var userToDelete = engine.Item<User>().Entities.Single(u => u.Id = 42);
+engine.Item<User>().Delete(userToDelete);
+```
+
 ## Third party code
 * For parsing expression trees into SQL WHERE clauses I used the code from Ryan Ohs published on his blog.
 You can find the post here: http://ryanohs.com/2016/04/generating-sql-from-expression-trees-part-2/
