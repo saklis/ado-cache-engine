@@ -21,7 +21,9 @@ ACE can be used as your standard ORM, but it main strength lies in storing data 
 * MS SQL Server 2008 R2 and greater (older version was not tested, but should be compatibile)
 
 ## Installation
-Install-Package AdoCacheEngine
+With Visual Studio NuGet Package Manager: `PM> Install-Package AdoCacheEngine`
+
+or download library from <https://www.nuget.org/packages/AdoCacheEngine/>
 
 ## Getting started with Cache Engine
 The Engine object is responsible for holding Cache items. One Engine object can handle up to one database and contains methods to create and remove new cached items (tables).
