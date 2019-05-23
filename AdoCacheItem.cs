@@ -700,7 +700,11 @@ namespace AdoCache {
                 // create instance of TEntity while passing 'true' to isManagedByCacheEngine
                 TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] {true}, null, null);
 
-                foreach (DataColumn column in table.Columns) typeof(TEntity).GetProperty(column.ColumnName).SetValue(newEntity, row[column.ColumnName] is DBNull ? null : row[column.ColumnName]);
+                foreach (DataColumn column in table.Columns) {
+                    PropertyInfo property = typeof(TEntity).GetProperty(column.ColumnName);
+                    if(property != null) property.SetValue(newEntity, row[column.ColumnName] is DBNull ? null : row[column.ColumnName]);
+                    else throw new ArgumentOutOfRangeException($"Column '{column.ColumnName}' doesn't exists in model class.");
+                }
 
                 MethodInfo CopyNewValuesMethod = typeof(TEntity).GetMethod("CopyNewValues", BindingFlags.NonPublic | BindingFlags.Instance);
                 CopyNewValuesMethod.Invoke(newEntity, null);
