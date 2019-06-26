@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 
 namespace AdoCache {
@@ -28,6 +28,7 @@ namespace AdoCache {
         ///     Create cached item.
         /// </summary>
         /// <typeparam name="TEntity">Type inheriting from AdoCacheEntity which will be cashed.</typeparam>
+        /// <exception cref="InvalidOperationException">Thrown when CacheItem for supplied type already exists.</exception>
         /// <returns>
         ///     Created cache item.
         /// </returns>
@@ -40,6 +41,7 @@ namespace AdoCache {
         /// </summary>
         /// <typeparam name="TEntity">Type inheriting from AdoCacheEntity which will be cashed.</typeparam>
         /// <param name="options">An object that contains configuration for Cache Item instance.</param>
+        /// <exception cref="InvalidOperationException">Thrown when CacheItem for supplied type already exists.</exception>
         /// <returns>
         ///     Created cache item.
         /// </returns>
@@ -90,6 +92,7 @@ namespace AdoCache {
         ///     Get cached item.
         /// </summary>
         /// <typeparam name="TEntity">Cached type inheriting from AdoCacheEntity.</typeparam>
+        /// <exception cref="InvalidOperationException">Thrown when CacheItem for supplied type does not exists.</exception>
         /// <returns>Cached item.</returns>
         public AdoCacheItem<TEntity> Item<TEntity>() where TEntity : AdoCacheEntity, new() {
             if (_items.ContainsKey(typeof(TEntity))) return _items[typeof(TEntity)] ?? throw new InvalidOperationException($"Cache for type {typeof(TEntity)} does not exist. Create cache using CreateCache() method before trying to use it.");
