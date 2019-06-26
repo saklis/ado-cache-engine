@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
@@ -22,9 +22,16 @@ namespace AdoCache {
         /// </summary>
         /// <param name="connectionString">Connection string to data base.</param>
         /// <param name="options">Configuration object. Can be null.</param>
+        /// <exception cref="ArgumentException">
+        /// Thrown when unable to deduce table name. [TableName] attribute in model class may be empty or missing.
+        /// - OR-
+        /// Thrown when TEntity class don't have any public properties.
+        /// - OR -
+        /// Thrown when TEntity have more than 1 property marked with [AutoIncrement].
+        /// </exception>
         public AdoCacheItem(string connectionString, AdoCacheItemOptions options) {
             string tableName = string.IsNullOrWhiteSpace(options?.OverrideTableName) ? (typeof(TEntity).GetCustomAttributes(typeof(TableNameAttribute), false)[0] as TableNameAttribute)?.TableName : options.OverrideTableName;
-            if (string.IsNullOrWhiteSpace(tableName)) throw new ArgumentException("Could not get table name for entity.");
+            if (string.IsNullOrWhiteSpace(tableName)) throw new ArgumentException("Could not deduce table name.");
             TableName = tableName;
 
             _connectionString = connectionString;
@@ -129,7 +136,7 @@ namespace AdoCache {
         /// <summary>
         ///     Holds last where clause used during LoadWhere(). Stored just in case user decides to call Reload().
         /// </summary>
-        protected Expression<Func<TEntity, bool>> _whereClause = null;
+        protected Expression<Func<TEntity, bool>> _whereClause;
 
         #endregion
 
@@ -140,10 +147,8 @@ namespace AdoCache {
         /// <summary>
         ///     Clears data from cache.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when cache data load operation is already in progress.</exception>
         public void Unload() {
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Cache data has not been loaded yet. There is no data to unload. LoadAll data first.");
-
             if (Monitor.TryEnter(_isLoading))
                 try {
                     _entities.Clear();
@@ -170,10 +175,8 @@ namespace AdoCache {
         ///     Reloads data into cache. Cache will be dropped and filled with new created Entities. Existing indexes and
         ///     dictionaries will be recreated.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when cache data load operation is already in progress.</exception>
         public void Reload() {
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Cache data has not been loaded yet. There is no data to reload. Load data first.");
-
             if (Monitor.TryEnter(_isLoading)) {
                 List<TEntity> newEntities = _whereClause != null ? GetEntitiesWhere(_whereClause) : GetEntities();
 
@@ -217,6 +220,11 @@ namespace AdoCache {
         /// <typeparam name="TRelation">Type inherited from <see cref="AdoCacheEntity" /> that relates to <see cref="TEntity" />.</typeparam>
         /// <param name="cachedItem">Cache item holding relating Entities.</param>
         /// <param name="clause">Lambda expression describing data relation.</param>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when data was already loaded.
+        /// - OR -
+        /// Thrown when data loading process is already underway.
+        /// </exception>
         public void LoadRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem, Expression<Func<TEntity, TRelation, bool>> clause) where TRelation : AdoCacheEntity, new() {
             if (IsLoaded) throw new InvalidOperationException("Cache data has already been loaded. Call Unload() to refresh data or Unload to clear data from cache");
 
@@ -236,6 +244,11 @@ namespace AdoCache {
         ///     Load limited number of Entities into cache.
         /// </summary>
         /// <param name="clause">Lambda expression describing data limitations.</param>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when data was already loaded.
+        /// - OR -
+        /// Thrown when data loading process is already underway.
+        /// </exception>
         public void LoadWhere(Expression<Func<TEntity, bool>> clause) {
             if (IsLoaded) throw new InvalidOperationException("Cache data has already been loaded. Call Reload() to refresh data or Unload() to clear data from cache");
 
@@ -255,6 +268,11 @@ namespace AdoCache {
         /// <summary>
         ///     Loads Entities into cache.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when data was already loaded.
+        /// - OR -
+        /// Thrown when data loading process is already underway.
+        /// </exception>
         public void LoadAll() {
             if (IsLoaded) throw new InvalidOperationException("Cache data has already been loaded. Call Reload() to refresh data or Unload() to clear data from cache");
 
@@ -275,10 +293,9 @@ namespace AdoCache {
         ///     Build new index. Name of column will be used as key and sorting property.
         /// </summary>
         /// <param name="nameOfColumn">Name of column used as key.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when model for this item don't have property named same as <see cref="nameOfColumn"/>.</exception>
+        /// <exception cref="ArgumentException">Index for supplied column already exists.</exception>
         public virtual void BuildIndex(string nameOfColumn) {
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Item has not been synchronized with database yet. Please load first.");
-
             PropertyInfo property = typeof(TEntity).GetProperty(nameOfColumn);
             if (property == null) throw new ArgumentOutOfRangeException(nameOfColumn, $"Type {typeof(TEntity).Name} does not have a property named {nameOfColumn}");
 
@@ -299,10 +316,9 @@ namespace AdoCache {
         /// <param name="nameOfColumn">
         ///     Name of column used as key. ATTENTION! Make sure that values in this column are unique.
         /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when model for this item don't have property named same as <see cref="nameOfColumn"/>.</exception>
+        /// <exception cref="ArgumentException">Dictionary for supplied column already exists.</exception>
         public virtual void BuildDictionary(string nameOfColumn) {
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Item has not been synchronized with database yet. Please load first.");
-
             if (_dictionaries.ContainsKey(nameOfColumn)) throw new ArgumentException($"Dictionary for {nameOfColumn} already exists.");
 
             PropertyInfo property = typeof(TEntity).GetProperty(nameOfColumn);
@@ -327,13 +343,15 @@ namespace AdoCache {
         ///     Entity that should be used as data source for update. ATTENTION! Ensure that you're only passing
         ///     objects that are part of the cache Entities collection!
         /// </param>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when supplied type is marked as read-only.
+        /// - OR -
+        /// Thrown when there was an unexpected result for UPDATE operation on db engine - different number affected rows than 1.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when supplied entity is not managed by cache engine instance.</exception>
         /// <returns>Updated entity.</returns>
         public virtual TEntity Update(TEntity entity) {
             if (IsReadOnly) throw new InvalidOperationException($"Type {typeof(TEntity)} do not have any public Properties marked with [Key] attribute. Please mark at least one of the properties as [Key].");
-
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Item has not been synchronized with database yet. Please load first.");
-
             if (!entity.IsManagedByCacheEngine) throw new ArgumentOutOfRangeException(nameof(entity), entity, "Supplied entity is not managed by cache engine and can't be used in update operation.");
 
             string query = BuildUpdateQuery(entity);
@@ -372,6 +390,7 @@ namespace AdoCache {
         /// </summary>
         /// <param name="nameOfColumn">Name of column</param>
         /// <param name="value">Value to find</param>
+        /// <exception cref="ArgumentException">Thrown when index for column doesn't exist.</exception>
         /// <returns>List of Entities with matching value.</returns>
         public virtual List<TEntity> FindInIndex(string nameOfColumn, object value) {
             if (_indexes.TryGetValue(nameOfColumn, out ConcurrentDictionary<object, List<TEntity>> index)) {
@@ -387,6 +406,7 @@ namespace AdoCache {
         /// </summary>
         /// <param name="nameOfColumn">Name of column.</param>
         /// <param name="value">Value of key field.</param>
+        /// <exception cref="ArgumentException">Thrown when index for column doesn't exist.</exception>
         /// <returns>Entity with key.</returns>
         public virtual TEntity FindInDictionary(string nameOfColumn, object value) {
             if (_dictionaries.TryGetValue(nameOfColumn, out ConcurrentDictionary<object, TEntity> dictionary)) {
@@ -401,12 +421,16 @@ namespace AdoCache {
         ///     Insert entity to to local cache and to data base.
         /// </summary>
         /// <param name="entity">Entity to insert.</param>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when Item is marked as read-only.
+        /// - OR -
+        /// Thrown when INSERT operation on db engine returns unexpected value (below zero) from SCOPE_IDENTITY.
+        /// - OR -
+        /// Thrown when at least one column is marked with [AutoIncrement] attribute, but SCOPE_IDENTITY do not return value. 
+        /// </exception>
         /// <returns>Inserted entity.</returns>
         public virtual TEntity Insert(TEntity entity) {
             if (IsReadOnly) throw new InvalidOperationException($"Type {typeof(TEntity)} do not have any public Properties marked with Key attribute. Please mark at least one of the properties as [Key].");
-
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Item has not been synchronized with database yet. Please load first.");
 
             // create instance of TEntity while passing 'true' to isManagedByCacheEngine
             TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] {true}, null, null);
@@ -417,28 +441,37 @@ namespace AdoCache {
                 conn.Open();
 
                 using (SqlCommand insert = new SqlCommand(insertQuery, conn)) {
-                    int insertedId = Convert.ToInt32(insert.ExecuteScalar());
-                    if (insertedId > 0) {
-                        if (_autoIncrementColumns != null && _autoIncrementColumns.Length == 1) _autoIncrementColumns[0].SetValue(newEntity, insertedId);
-                        foreach (PropertyInfo keyColumn in _keyColumns.Where(c=>!_autoIncrementColumns.Contains(c))) keyColumn.SetValue(newEntity, keyColumn.GetValue(entity));
+                    object scalar = insert.ExecuteScalar();
 
-                        MethodInfo copyNewValuesMethod = typeof(TEntity).GetMethod("CopyNewValues", BindingFlags.NonPublic | BindingFlags.Instance);
-                        copyNewValuesMethod.Invoke(newEntity, null);
-
-                        if (_readOnlyColumns == null) {
-                            foreach (PropertyInfo info in _columns.Except(_keyColumns).Except(_autoIncrementColumns)) info.SetValue(newEntity, info.GetValue(entity));
-                        } else {
-                            foreach (PropertyInfo info in _columns.Except(_keyColumns).Except(_autoIncrementColumns).Except(_readOnlyColumns)) info.SetValue(newEntity, info.GetValue(entity));
-                            UpdateReadOnlyColumn(newEntity, conn);
+                    if (_autoIncrementColumns.Length > 0) {
+                        try {
+                            int insertedId = Convert.ToInt32(scalar);
+                            if (insertedId > 0) {
+                                if (_autoIncrementColumns != null && _autoIncrementColumns.Length == 1) _autoIncrementColumns[0].SetValue(newEntity, insertedId);
+                            } else {
+                                throw new InvalidOperationException($"There was an unexpected result while Inserting data to data base. Returned index: {insertedId}");
+                            }
+                        } catch (InvalidCastException ex) {
+                            throw new InvalidOperationException($"Column(s) {string.Join<PropertyInfo>(", ", _autoIncrementColumns)} are marked with [AutoIncrement] attribute, but db engine did not return scope identity after Insert(). DATA ARE INCONSISTENT.", ex);
                         }
-
-                        copyNewValuesMethod.Invoke(newEntity, null);
-
-                        _entities.Add(newEntity);
-                        InsertIntoIndexes(newEntity);
-                    } else {
-                        throw new InvalidOperationException($"There was an unexpected result while Inserting data to data base. Returned index: {insertedId}");
                     }
+
+                    foreach (PropertyInfo keyColumn in _keyColumns.Where(c => !_autoIncrementColumns.Contains(c))) keyColumn.SetValue(newEntity, keyColumn.GetValue(entity));
+
+                    MethodInfo copyNewValuesMethod = typeof(TEntity).GetMethod("CopyNewValues", BindingFlags.NonPublic | BindingFlags.Instance);
+                    copyNewValuesMethod.Invoke(newEntity, null);
+
+                    if (_readOnlyColumns == null) {
+                        foreach (PropertyInfo info in _columns.Except(_keyColumns).Except(_autoIncrementColumns)) info.SetValue(newEntity, info.GetValue(entity));
+                    } else {
+                        foreach (PropertyInfo info in _columns.Except(_keyColumns).Except(_autoIncrementColumns).Except(_readOnlyColumns)) info.SetValue(newEntity, info.GetValue(entity));
+                        UpdateReadOnlyColumn(newEntity, conn);
+                    }
+
+                    copyNewValuesMethod.Invoke(newEntity, null);
+
+                    _entities.Add(newEntity);
+                    InsertIntoIndexes(newEntity);
                 }
 
                 conn.Close();
@@ -473,12 +506,18 @@ namespace AdoCache {
         ///     Entity that should be deleted. ATTENTION! Ensure that you're only passing objects that are part of
         ///     the cache Entities collection!
         /// </param>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when item is marked as read-only.
+        /// - OR -
+        /// Thrown when there was unexpected result from DELETE operation on db engine - number of affected rows was different than 1.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when supplied entity is not managed by cache engine instance.
+        /// - OR -
+        /// Thrown when it was not possible to deduce if entity is managed by cache engine instance. 
+        /// </exception>
         public virtual void Delete(TEntity entity) {
             if (IsReadOnly) throw new InvalidOperationException($"Type {typeof(TEntity)} do not have any public Properties marked with Key attribute. Please mark at least one of the properties as [Key].");
-
-            // Check removed to support operation on empty cache
-            //if (!IsLoaded) throw new InvalidOperationException("Item has not been synchronized with database yet. Please load first.");
-
             if (!entity.IsManagedByCacheEngine) throw new ArgumentOutOfRangeException(nameof(entity), entity, "Supplied entity is not managed by cache engine and can't be an delete operation argument.");
 
             string query = BuildDeleteQuery(entity);
@@ -602,9 +641,9 @@ namespace AdoCache {
 
             query = "UPDATE " + TableName + " SET ";
 
-            PropertyInfo[] colsToUpdate = _columns.Where(c => !_keyColumns.Contains(c)).ToArray();
+            PropertyInfo[] colsToUpdate                = _columns.Where(c => !_keyColumns.Contains(c)).ToArray();
             if (_readOnlyColumns != null) colsToUpdate = colsToUpdate.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
-            List<string>   setClauses   = new List<string>(colsToUpdate.Length);
+            List<string> setClauses                    = new List<string>(colsToUpdate.Length);
             foreach (PropertyInfo property in colsToUpdate) {
                 object value = _newValueFields[property].GetValue(entity);
                 setClauses.Add($"{property.Name} = {(value == null ? "NULL" : $"'{value}'")} ");
@@ -694,6 +733,12 @@ namespace AdoCache {
             return filteredList;
         }
 
+        /// <summary>
+        /// Get list of entities for table.
+        /// </summary>
+        /// <param name="table">Table name.</param>
+        /// <returns>List of entities.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when one of the columns in table doesn't exist in model class.</exception>
         private static List<TEntity> GetEntityList(DataTable table) {
             List<TEntity> entities = new List<TEntity>();
             foreach (DataRow row in table.Rows) {
@@ -702,8 +747,10 @@ namespace AdoCache {
 
                 foreach (DataColumn column in table.Columns) {
                     PropertyInfo property = typeof(TEntity).GetProperty(column.ColumnName);
-                    if(property != null) property.SetValue(newEntity, row[column.ColumnName] is DBNull ? null : row[column.ColumnName]);
-                    else throw new ArgumentOutOfRangeException($"Column '{column.ColumnName}' doesn't exists in model class.");
+                    if (property != null)
+                        property.SetValue(newEntity, row[column.ColumnName] is DBNull ? null : row[column.ColumnName]);
+                    else
+                        throw new ArgumentOutOfRangeException($"Column '{column.ColumnName}' doesn't exists in model class.");
                 }
 
                 MethodInfo CopyNewValuesMethod = typeof(TEntity).GetMethod("CopyNewValues", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -721,6 +768,11 @@ namespace AdoCache {
         /// <typeparam name="TRelation">Type of cached entity that is base for loading data.</typeparam>
         /// <param name="cachedItem">Cached item object that is used as base for loading data.</param>
         /// <param name="clause">Key clause.</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when expression describing key could not be parsed.
+        /// - OR -
+        /// Thrown when expression has unexpected number of parameters.
+        /// </exception>
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem, Expression<Func<TEntity, TRelation, bool>> clause) where TRelation : AdoCacheEntity, new() {
             if (clause.NodeType         == ExpressionType.Lambda) throw new ArgumentOutOfRangeException(nameof(clause), clause.NodeType.ToString(), "Provided Node Type suggests that clause describes complex key. Complex keys are not supported.");
