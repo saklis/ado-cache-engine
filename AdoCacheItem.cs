@@ -354,13 +354,11 @@ namespace AdoCache {
             if (IsReadOnly) throw new InvalidOperationException($"Type {typeof(TEntity)} do not have any public Properties marked with [Key] attribute. Please mark at least one of the properties as [Key].");
             if (!entity.IsManagedByCacheEngine) throw new ArgumentOutOfRangeException(nameof(entity), entity, "Supplied entity is not managed by cache engine and can't be used in update operation.");
 
-            string query = BuildUpdateQuery(entity);
-
             using (SqlConnection conn = new SqlConnection(_connectionString)) {
-                conn.Open();
+                using (SqlCommand cmd = BuildUpdateCommand(entity, conn)) {
+                    conn.Open();
 
-                using (SqlCommand command = new SqlCommand(query, conn)) {
-                    int rowsAffected = command.ExecuteNonQuery();
+                    int rowsAffected = cmd.ExecuteNonQuery();
 
                     if (rowsAffected == 1) {
                         // UPDATE INDEXES
@@ -380,7 +378,6 @@ namespace AdoCache {
 
                 conn.Close();
             }
-
 
             return entity;
         }
@@ -435,12 +432,10 @@ namespace AdoCache {
             // create instance of TEntity while passing 'true' to isManagedByCacheEngine
             TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] {true}, null, null);
 
-            string insertQuery = BuildInsertQuery(entity);
-
             using (SqlConnection conn = new SqlConnection(_connectionString)) {
-                conn.Open();
-
-                using (SqlCommand insert = new SqlCommand(insertQuery, conn)) {
+                using (SqlCommand insert = BuildInsertCommand(entity, conn)) {
+                    conn.Open();
+                    
                     object scalar = insert.ExecuteScalar();
 
                     if (_autoIncrementColumns.Length > 0) {
@@ -472,9 +467,9 @@ namespace AdoCache {
 
                     _entities.Add(newEntity);
                     InsertIntoIndexes(newEntity);
+                    
+                    conn.Close();
                 }
-
-                conn.Close();
             }
 
             return newEntity;
@@ -606,47 +601,46 @@ namespace AdoCache {
         }
 
         /// <summary>
-        ///     Build a query to insert entity to data base.
+        /// Build Sql Command to insert entity to data base.
         /// </summary>
         /// <param name="entity">Entity to insert.</param>
-        /// <returns>Query string of Insert statement.</returns>
-        private string BuildInsertQuery(TEntity entity) {
+        /// <param name="conn">Sql Connection that should be used.</param>
+        /// <returns>Sql Command to insert entity.</returns>
+        private SqlCommand BuildInsertCommand(TEntity entity, SqlConnection conn) {
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
             PropertyInfo[] cols                = _columns.Where(c => !_autoIncrementColumns.Contains(c)).ToArray();
             if (_readOnlyColumns != null) cols = cols.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
+            
+            string query = $"INSERT INTO {TableName}({string.Join(", ", cols.Select(c => c.Name).ToArray())}) VALUES({string.Join(", ", cols.Select(c => "@" + c.Name).ToArray())});SELECT SCOPE_IDENTITY();";
 
-            string       query      = $"INSERT INTO {TableName}({string.Join(", ", cols.Select(c => c.Name).ToArray())}) VALUES(";
-            List<string> valuesList = new List<string>();
+            SqlCommand cmd = new SqlCommand(query, conn);
             foreach (PropertyInfo col in cols) {
                 object value = col.GetValue(entity);
-                valuesList.Add(value == null ? "NULL" : $"'{value}'");
+                cmd.Parameters.AddWithValue("@" + col.Name, value ?? DBNull.Value);
             }
-
-            query += string.Join(", ", valuesList) + ");SELECT SCOPE_IDENTITY();";
-
+            
             Thread.CurrentThread.CurrentCulture = CurrentCulture;
-            return query;
+
+            return cmd;
         }
 
         /// <summary>
-        ///     Build a query to update entity in data base.
+        /// Build Sql Command to update entity in data base.
         /// </summary>
         /// <param name="entity">Entity to update.</param>
-        /// <returns>Query string of Update statement.</returns>
-        private string BuildUpdateQuery(TEntity entity) {
+        /// <param name="conn">Sql Connection to use.</param>
+        /// <returns>Sql Command with Update statement.</returns>
+        private SqlCommand BuildUpdateCommand(TEntity entity, SqlConnection conn) {
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
-            string query = "";
-
-            query = "UPDATE " + TableName + " SET ";
+            string query = "UPDATE " + TableName + " SET ";
 
             PropertyInfo[] colsToUpdate                = _columns.Where(c => !_keyColumns.Contains(c)).ToArray();
             if (_readOnlyColumns != null) colsToUpdate = colsToUpdate.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
             List<string> setClauses                    = new List<string>(colsToUpdate.Length);
             foreach (PropertyInfo property in colsToUpdate) {
-                object value = _newValueFields[property].GetValue(entity);
-                setClauses.Add($"{property.Name} = {(value == null ? "NULL" : $"'{value}'")} ");
+                setClauses.Add($"{property.Name} = @{property.Name} ");
             }
 
             query += string.Join(", ", setClauses);
@@ -655,9 +649,16 @@ namespace AdoCache {
             foreach (PropertyInfo key in _keyColumns) whereClauses.Add(key.Name + " = '" + key.GetValue(entity) + "'");
 
             query += " WHERE " + string.Join(" AND ", whereClauses);
-
+            
+            SqlCommand cmd = new SqlCommand(query, conn);
+            foreach (PropertyInfo col in colsToUpdate) {
+                object value = _newValueFields[col].GetValue(entity);
+                cmd.Parameters.AddWithValue(col.Name, value ?? DBNull.Value);
+            }
+            
             Thread.CurrentThread.CurrentCulture = CurrentCulture;
-            return query;
+
+            return cmd;
         }
 
         #endregion
