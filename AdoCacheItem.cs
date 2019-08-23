@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading;
 using AdoCache.Attributes;
 using AdoCache.ryanohs;
+using AdoCache.Structures;
 
 namespace AdoCache {
     /// <summary>
@@ -776,39 +777,66 @@ namespace AdoCache {
         /// </exception>
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem, Expression<Func<TEntity, TRelation, bool>> clause) where TRelation : AdoCacheEntity, new() {
-            if (clause.NodeType         == ExpressionType.Lambda) throw new ArgumentOutOfRangeException(nameof(clause), clause.NodeType.ToString(), "Provided Node Type suggests that clause describes complex key. Complex keys are not supported.");
-            if (clause.Parameters.Count != 2) throw new ArgumentOutOfRangeException(nameof(clause), clause.Parameters.Count, "Provided clause have incorrect number of parameters. Correct number of parameters is 2.");
-
+            string typeName = typeof(TEntity).Name;
+            List<TEntity> entitiesList = new List<TEntity>();
             DataTable table = null;
 
-            List<TEntity>    entitiesList     = new List<TEntity>();
-            BinaryExpression expression       = clause.Body as BinaryExpression;
-            MemberExpression memberExpression = expression.Left as MemberExpression;
-            string           memberName       = memberExpression.Member.Name;
+            WherePart sql = new WhereBuilder().ToSql(clause.Body);
+            string type = typeof(TRelation).Name;
+            if (sql.Sql.Contains(type)) {
+                List<ReplaceInfo> replaceInfos = ReplaceInfo.AllIndexesOf(sql.Sql, type);
 
-            MemberExpression relationExpression = expression.Right as MemberExpression;
-            string           relationName       = relationExpression.Member.Name;
-
-            bool isString = relationExpression.Type == typeof(string);
-
-            string nodeOperator = WhereBuilder.NodeTypeToString(expression.NodeType);
-
-            using (SqlConnection conn = new SqlConnection(_connectionString)) {
-                foreach (TRelation entity in cachedItem.Entities) {
-                    object value = typeof(TRelation).GetProperty(relationName).GetValue(entity);
-
-                    using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM {TableName} WHERE {memberName} {nodeOperator} {(isString ? $"'{value}'" : value)}", conn)) {
-                        table = new DataTable(TableName);
-                        adapter.Fill(table);
-                    }
-
-                    entitiesList.AddRange(GetEntityList(table));
+                foreach (ReplaceInfo info in replaceInfos) {
+                    info.Property = typeof(TRelation).GetProperty(info.Field);
                 }
 
-                conn.Close();
+                using (SqlConnection conn = new SqlConnection(_connectionString)) {
+                    foreach (TRelation entity in cachedItem.Entities) {
+                        string whereClause = sql.Sql;
+                        foreach (ReplaceInfo info in replaceInfos) {
+                            info.NewString = info.IsString ? $"'{info.Property.GetValue(entity)}'" : info.Property.GetValue(entity).ToString();
+                            whereClause = whereClause.Replace(info.OldString, info.NewString);
+                        }
+                        whereClause = sql.Parameters.Aggregate(whereClause, (current, param) => current.Replace($"@{param.Key}", $"'{param.Value}'"));
+                        whereClause = whereClause.Replace("[", "").Replace("]", "").Replace($"{typeName}.", "");
+
+                        string queryContent = $"SELECT * FROM {TableName} WHERE {whereClause}";
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(queryContent, conn))
+                        {
+                            table = new DataTable(TableName);
+                            adapter.Fill(table);
+                        }
+
+                        entitiesList.AddRange(GetEntityList(table));
+                    }
+                    conn.Close();
+                }
             }
 
             return entitiesList;
+        }
+
+        /// <summary>
+        /// Find all position of substring in larger text.
+        /// </summary>
+        /// <remarks>
+        /// source: https://stackoverflow.com/questions/2641326/finding-all-positions-of-substring-in-a-larger-string-in-c-sharp
+        /// </remarks>
+        /// <param name="str">String to look through.</param>
+        /// <param name="value">String to look for.</param>
+        /// <returns>List of indexes.</returns>
+        private List<int> AllIndexesOf(string str, string value)
+        {
+            if (String.IsNullOrEmpty(value))
+                throw new ArgumentException("the string to find may not be empty", "value");
+            List<int> indexes = new List<int>();
+            for (int index = 0; ; index += value.Length)
+            {
+                index = str.IndexOf(value, index);
+                if (index == -1)
+                    return indexes;
+                indexes.Add(index);
+            }
         }
 
         /// <summary>

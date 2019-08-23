@@ -27,15 +27,20 @@ namespace AdoCache.ryanohs
             return Recurse(ref i, expression.Body);
         }
 
-        private WherePart Recurse(ref int i, Expression expression, bool isUnary = false, string prefix = null, string postfix = null)
+        public WherePart ToSql(Expression expression) {
+            var i = 1;
+            return Recurse(ref i, expression, false, null, null, true);
+        }
+
+        private WherePart Recurse(ref int i, Expression expression, bool isUnary = false, string prefix = null, string postfix = null, bool addReflectedType = false)
         {
             if (expression is UnaryExpression) {
                 var unary = (UnaryExpression)expression;
-                return WherePart.Concat(NodeTypeToString(unary.NodeType), Recurse(ref i, unary.Operand, true));
+                return WherePart.Concat(NodeTypeToString(unary.NodeType), Recurse(ref i, unary.Operand, true, addReflectedType:addReflectedType));
             }
             if (expression is BinaryExpression) {
                 var body = (BinaryExpression)expression;
-                return WherePart.Concat(Recurse(ref i, body.Left), NodeTypeToString(body.NodeType), Recurse(ref i, body.Right));
+                return WherePart.Concat(Recurse(ref i, body.Left, addReflectedType: addReflectedType), NodeTypeToString(body.NodeType), Recurse(ref i, body.Right, addReflectedType: addReflectedType));
             }
             if (expression is ConstantExpression) {
                 var constant = (ConstantExpression)expression;
@@ -56,9 +61,9 @@ namespace AdoCache.ryanohs
 
                 if (member.Member is PropertyInfo) {
                     var property = (PropertyInfo)member.Member;
-                    var colName = property.Name;
+                    var colName = (addReflectedType ? $"{property.ReflectedType.Name}." : "") + property.Name;
                     if (isUnary && member.Type == typeof(bool)) {
-                        return WherePart.Concat(Recurse(ref i, expression), "=", WherePart.IsParameter(i++, true));
+                        return WherePart.Concat(Recurse(ref i, expression, addReflectedType: addReflectedType), "=", WherePart.IsParameter(i++, true));
                     }
                     return WherePart.IsSql("[" + colName + "]");
                 }
@@ -75,13 +80,13 @@ namespace AdoCache.ryanohs
                 var methodCall = (MethodCallExpression)expression;
                 // LIKE queries:
                 if (methodCall.Method == typeof(string).GetMethod("Contains", new[] { typeof(string) })) {
-                    return WherePart.Concat(Recurse(ref i, methodCall.Object), "LIKE", Recurse(ref i, methodCall.Arguments[0], prefix: "%", postfix: "%"));
+                    return WherePart.Concat(Recurse(ref i, methodCall.Object, addReflectedType: addReflectedType), "LIKE", Recurse(ref i, methodCall.Arguments[0], prefix: "%", postfix: "%", addReflectedType:addReflectedType));
                 }
                 if (methodCall.Method == typeof(string).GetMethod("StartsWith", new[] { typeof(string) })) {
-                    return WherePart.Concat(Recurse(ref i, methodCall.Object), "LIKE", Recurse(ref i, methodCall.Arguments[0], postfix: "%"));
+                    return WherePart.Concat(Recurse(ref i, methodCall.Object, addReflectedType: addReflectedType), "LIKE", Recurse(ref i, methodCall.Arguments[0], postfix: "%", addReflectedType: addReflectedType));
                 }
                 if (methodCall.Method == typeof(string).GetMethod("EndsWith", new[] { typeof(string) })) {
-                    return WherePart.Concat(Recurse(ref i, methodCall.Object), "LIKE", Recurse(ref i, methodCall.Arguments[0], prefix: "%"));
+                    return WherePart.Concat(Recurse(ref i, methodCall.Object, addReflectedType: addReflectedType), "LIKE", Recurse(ref i, methodCall.Arguments[0], prefix: "%", addReflectedType: addReflectedType));
                 }
                 // IN queries:
                 if (methodCall.Method.Name == "Contains") {
@@ -97,7 +102,7 @@ namespace AdoCache.ryanohs
                         throw new Exception("Unsupported method call: " + methodCall.Method.Name);
                     }
                     var values = (IEnumerable)GetValue(collection);
-                    return WherePart.Concat(Recurse(ref i, property), "IN", WherePart.IsCollection(ref i, values));
+                    return WherePart.Concat(Recurse(ref i, property, addReflectedType: addReflectedType), "IN", WherePart.IsCollection(ref i, values));
                 }
                 throw new Exception("Unsupported method call: " + methodCall.Method.Name);
             }
@@ -152,6 +157,8 @@ namespace AdoCache.ryanohs
                     return "OR";
                 case ExpressionType.Subtract:
                     return "-";
+                case ExpressionType.Convert:
+                    return "";
             }
             throw new Exception($"Unsupported node type: {nodeType}");
         }
