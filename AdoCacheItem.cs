@@ -781,7 +781,7 @@ namespace AdoCache {
             List<TEntity> entitiesList = new List<TEntity>();
             DataTable table = null;
 
-            WherePart sql = new WhereBuilder().ToSql(clause.Body);
+            WherePart sql = new WhereBuilder().ExpressionToSql(clause.Body);
             string type = typeof(TRelation).Name;
             if (sql.Sql.Contains(type)) {
                 List<ReplaceInfo> replaceInfos = ReplaceInfo.AllIndexesOf(sql.Sql, type);

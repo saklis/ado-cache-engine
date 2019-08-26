@@ -27,7 +27,7 @@ namespace AdoCache.ryanohs
             return Recurse(ref i, expression.Body);
         }
 
-        public WherePart ToSql(Expression expression) {
+        public WherePart ExpressionToSql(Expression expression) {
             var i = 1;
             return Recurse(ref i, expression, false, null, null, true);
         }
