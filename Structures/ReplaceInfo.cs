@@ -57,7 +57,7 @@ namespace AdoCache.Structures
             List<ReplaceInfo> infos = new List<ReplaceInfo>();
             for (int index = 0; ; index += typeName.Length)
             {
-                index = query.IndexOf(typeName, index);
+                index = query.IndexOf($"{typeName}.", index);
                 if (index == -1) return infos;
 
                 ReplaceInfo info = new ReplaceInfo

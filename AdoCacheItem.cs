@@ -231,8 +231,7 @@ namespace AdoCache {
 
             if (Monitor.TryEnter(_isLoading))
                 try {
-                    List<TEntity> entities = GetEntitiesRelatedWith(cachedItem, clause);
-                    _entities.AddRange(entities);
+                    _entities.AddRange(GetEntitiesRelatedWith(cachedItem, clause));
                     IsLoaded = true;
                 } finally {
                     Monitor.Exit(_isLoading);
@@ -256,8 +255,7 @@ namespace AdoCache {
             if (Monitor.TryEnter(_isLoading))
                 try {
                     _whereClause = clause;
-                    List<TEntity> entities = GetEntitiesWhere(_whereClause);
-                    _entities.AddRange(entities);
+                    _entities.AddRange(GetEntitiesWhere(_whereClause));
                     IsLoaded = true;
                 } finally {
                     Monitor.Exit(_isLoading);
@@ -280,8 +278,7 @@ namespace AdoCache {
             if (Monitor.TryEnter(_isLoading))
                 try {
                     _whereClause = null;
-                    List<TEntity> entities = GetEntities();
-                    _entities.AddRange(entities);
+                    _entities.AddRange(GetEntities());
                     IsLoaded = true;
                 } finally {
                     Monitor.Exit(_isLoading);
