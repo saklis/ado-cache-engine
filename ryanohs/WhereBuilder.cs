@@ -36,11 +36,14 @@ namespace AdoCache.ryanohs
         {
             if (expression is UnaryExpression) {
                 var unary = (UnaryExpression)expression;
-                return WherePart.Concat(NodeTypeToString(unary.NodeType), Recurse(ref i, unary.Operand, true, addReflectedType:addReflectedType));
+                WherePart unaryRight = Recurse(ref i, unary.Operand, true, addReflectedType: addReflectedType);
+                return WherePart.Concat(NodeTypeToString(null, unary.NodeType, unaryRight), unaryRight);
             }
             if (expression is BinaryExpression) {
                 var body = (BinaryExpression)expression;
-                return WherePart.Concat(Recurse(ref i, body.Left, addReflectedType: addReflectedType), NodeTypeToString(body.NodeType), Recurse(ref i, body.Right, addReflectedType: addReflectedType));
+                WherePart left = Recurse(ref i, body.Left, addReflectedType: addReflectedType);
+                WherePart right = Recurse(ref i, body.Right, addReflectedType: addReflectedType);
+                return WherePart.Concat(left, NodeTypeToString(left, body.NodeType, right), right);
             }
             if (expression is ConstantExpression) {
                 var constant = (ConstantExpression)expression;
@@ -118,7 +121,7 @@ namespace AdoCache.ryanohs
             return getter();
         }
 
-        public static string NodeTypeToString(ExpressionType nodeType)
+        public static string NodeTypeToString(WherePart left, ExpressionType nodeType, WherePart right)
         {
             switch (nodeType) {
                 case ExpressionType.Add:
@@ -130,7 +133,9 @@ namespace AdoCache.ryanohs
                 case ExpressionType.Divide:
                     return "/";
                 case ExpressionType.Equal:
-                    return "=";
+                    if (IsParamValueNull(right)) return "IS";
+                    else if (IsParamValueNull(left)) return "IS";
+                    else return "=";
                 case ExpressionType.ExclusiveOr:
                     return "^";
                 case ExpressionType.GreaterThan:
@@ -150,7 +155,9 @@ namespace AdoCache.ryanohs
                 case ExpressionType.Not:
                     return "NOT";
                 case ExpressionType.NotEqual:
-                    return "<>";
+                    if (IsParamValueNull(right)) return "IS NOT";
+                    else if (IsParamValueNull(left)) return "IS NOT";
+                    else return "<>";
                 case ExpressionType.Or:
                     return "|";
                 case ExpressionType.OrElse:
@@ -161,6 +168,10 @@ namespace AdoCache.ryanohs
                     return "";
             }
             throw new Exception($"Unsupported node type: {nodeType}");
+        }
+        
+        private static bool IsParamValueNull(WherePart param) {
+            return param != null && param.Sql.StartsWith("@") && param.Sql.Substring(1).All(char.IsDigit) && param.Parameters[param.Sql.Substring(1)] == null;
         }
     }
 }

@@ -849,7 +849,8 @@ namespace AdoCache {
 
                 WherePart sql                                                             = new WhereBuilder().ToSql(clause);
                 string    whereClause                                                     = sql.Sql;
-                foreach (KeyValuePair<string, object> pair in sql.Parameters) whereClause = whereClause.Replace($"@{pair.Key}", $"'{pair.Value.ToString().Replace("\"", "")}'");
+                foreach (KeyValuePair<string, object> pair in sql.Parameters) 
+                    whereClause = whereClause.Replace($"@{pair.Key}", $"{(pair.Value == null ? "NULL" : $"'{pair.Value.ToString().Replace("\"", "")}'")}");
 
                 using (SqlDataAdapter adapter = new SqlDataAdapter($"SELECT * FROM {TableName} WHERE {whereClause}", conn)) {
                     table = new DataTable(TableName);
