@@ -794,7 +794,9 @@ namespace AdoCache {
                             info.NewString = info.IsString ? $"'{info.Property.GetValue(entity)}'" : info.Property.GetValue(entity).ToString();
                             whereClause = whereClause.Replace(info.OldString, info.NewString);
                         }
-                        whereClause = sql.Parameters.Aggregate(whereClause, (current, param) => current.Replace($"@{param.Key}", $"'{param.Value}'"));
+
+                        foreach (KeyValuePair<string, object> parameter in sql.Parameters) 
+                            whereClause = whereClause.Replace($"@{parameter.Key}", $"{(parameter.Value == null ? "NULL" : $"'{parameter.Value.ToString().Replace("\"", "")}'")}");
                         whereClause = whereClause.Replace("[", "").Replace("]", "").Replace($"{typeName}.", "");
 
                         string queryContent = $"SELECT * FROM {TableName} WHERE {whereClause}";
