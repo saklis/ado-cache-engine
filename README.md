@@ -134,6 +134,24 @@ var groupItem = engine.Item<Group>();
 engine.CreateItem<User>().LoadRelatedWith(groupItem, (user, group) => {user.Id == group.MemberId});
 ```
 
+One catch - keep in mind that there are things that are allowed in C#'s lambda while not allowed in SQL. Example of that can be comparison with NULL.
+```c#
+item.LoadWhere(o => o.fieldName == null);
+```
+will be parsed into
+```sql
+WHERE [fieldName] IS NULL
+```
+In this particular case order is important, as parser will just conver syntax as-is.
+```c#
+item.LoadWhere(o => null == o.fieldName);
+```
+is correct from C#'s point of view. It'll be however parsed into
+```sql
+WHERE NULL IS [fieldName]
+```
+which will cause a syntax error on server side and rise `SQLException`.
+
 ## CRUD operations
 Using Cache Item member methods you can edit data existing already in cache, add new and remove old objects/records. Any changes you make in Cached Item will be mirrored into connected database. This includes even the instance that have no data loaded.
 
