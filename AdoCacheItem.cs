@@ -8,6 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using AdoCache.Attributes;
 using AdoCache.ryanohs;
 using AdoCache.Structures;
@@ -774,12 +775,11 @@ namespace AdoCache {
         /// </exception>
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem, Expression<Func<TEntity, TRelation, bool>> clause) where TRelation : AdoCacheEntity, new() {
-            string typeName = typeof(TEntity).Name;
-            List<TEntity> entitiesList = new List<TEntity>();
-            DataTable table = null;
+            string                 typeName     = typeof(TEntity).Name;
+            ConcurrentBag<TEntity> entitiesList = new ConcurrentBag<TEntity>();
 
-            WherePart sql = new WhereBuilder().ExpressionToSql(clause.Body);
-            string type = typeof(TRelation).Name;
+            WherePart sql  = new WhereBuilder().ExpressionToSql(clause.Body);
+            string    type = typeof(TRelation).Name;
             if (sql.Sql.Contains(type)) {
                 List<ReplaceInfo> replaceInfos = ReplaceInfo.AllIndexesOf(sql.Sql, type);
 
@@ -787,32 +787,37 @@ namespace AdoCache {
                     info.Property = typeof(TRelation).GetProperty(info.Field);
                 }
 
-                using (SqlConnection conn = new SqlConnection(_connectionString)) {
-                    foreach (TRelation entity in cachedItem.Entities) {
-                        string whereClause = sql.Sql;
-                        foreach (ReplaceInfo info in replaceInfos) {
-                            info.NewString = info.IsString ? $"'{info.Property.GetValue(entity)}'" : info.Property.GetValue(entity).ToString();
-                            whereClause = whereClause.Replace(info.OldString, info.NewString);
-                        }
+                Parallel.ForEach(cachedItem.Entities, entity => {
+                                                          using (SqlConnection conn = new SqlConnection(_connectionString)) {
+                                                              conn.Open();
+                                                              string whereClause = sql.Sql;
+                                                              foreach (ReplaceInfo info in replaceInfos) {
+                                                                  info.NewString = info.IsString ? $"'{info.Property.GetValue(entity)}'" : info.Property.GetValue(entity).ToString();
+                                                                  whereClause    = whereClause.Replace(info.OldString, info.NewString);
+                                                              }
 
-                        foreach (KeyValuePair<string, object> parameter in sql.Parameters) 
-                            whereClause = whereClause.Replace($"@{parameter.Key}", $"{(parameter.Value == null ? "NULL" : $"'{parameter.Value.ToString().Replace("\"", "")}'")}");
-                        whereClause = whereClause.Replace("[", "").Replace("]", "").Replace($"{typeName}.", "");
+                                                              foreach (KeyValuePair<string, object> parameter in sql.Parameters) whereClause = whereClause.Replace($"@{parameter.Key}", $"{(parameter.Value == null ? "NULL" : $"'{parameter.Value.ToString().Replace("\"", "")}'")}");
+                                                              whereClause = whereClause.Replace("[", "").Replace("]", "").Replace($"{typeName}.", "");
 
-                        string queryContent = $"SELECT * FROM {TableName} WHERE {whereClause}";
-                        using (SqlDataAdapter adapter = new SqlDataAdapter(queryContent, conn))
-                        {
-                            table = new DataTable(TableName);
-                            adapter.Fill(table);
-                        }
+                                                              string    queryContent = $"SELECT * FROM {TableName} WHERE {whereClause}";
+                                                              DataTable table        = null;
+                                                              using (SqlDataAdapter adapter = new SqlDataAdapter(queryContent, conn)) {
+                                                                  table = new DataTable(TableName);
+                                                                  adapter.Fill(table);
+                                                              }
 
-                        entitiesList.AddRange(GetEntityList(table));
-                    }
-                    conn.Close();
-                }
+                                                              List<TEntity> entities = GetEntityList(table);
+                                                              foreach (TEntity ent in entities) {
+                                                                  entitiesList.Add(ent);
+                                                              }
+
+                                                              conn.Close();
+                                                          }
+                                                      });
             }
 
-            return entitiesList;
+            List<TEntity> list = entitiesList.ToList();
+            return list;
         }
 
         /// <summary>
@@ -827,7 +832,7 @@ namespace AdoCache {
         private List<int> AllIndexesOf(string str, string value)
         {
             if (String.IsNullOrEmpty(value))
-                throw new ArgumentException("the string to find may not be empty", "value");
+                throw new ArgumentException("The string to find cannot be empty", nameof(value));
             List<int> indexes = new List<int>();
             for (int index = 0; ; index += value.Length)
             {
