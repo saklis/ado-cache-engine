@@ -68,6 +68,15 @@ namespace AdoCache.ryanohs
                     if (isUnary && member.Type == typeof(bool)) {
                         return WherePart.Concat(Recurse(ref i, expression, addReflectedType: addReflectedType), "=", WherePart.IsParameter(i++, true));
                     }
+                    if (member.NodeType == ExpressionType.MemberAccess && member.Expression.NodeType == ExpressionType.MemberAccess) {
+                        string name = (member.Expression as MemberExpression).Member.Name;
+                        ConstantExpression constant = (member.Expression as MemberExpression).Expression as ConstantExpression;
+                        object item = constant.Type.GetField(name).GetValue(constant.Value);
+
+                        object value = item.GetType().GetProperty(member.Member.Name).GetValue(item);
+
+                        return WherePart.IsParameter(i++, value);
+                    }
                     return WherePart.IsSql("[" + colName + "]");
                 }
                 if (member.Member is FieldInfo) {
