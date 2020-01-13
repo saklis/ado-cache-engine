@@ -123,7 +123,7 @@ engine.CreateItem<User>().LoadAll();
 
 You may also use simple lambda expressions to load only subset of data, like for example only users that name starts with 'S'.
 ```c#
-engine.CreateItem<User>.LoadWhere(u => u.Name.StartsWith("S"));
+engine.CreateItem<User>.LoadWhere(u => u.Surname == "Smith");
 ```
 
 Last but not least, in case you need to load only data that is in relation with another Item, you can use LoadRelatedWith() method.
