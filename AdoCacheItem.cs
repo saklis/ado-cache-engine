@@ -359,7 +359,7 @@ namespace AdoCache {
 
                     int rowsAffected = cmd.ExecuteNonQuery();
 
-                    if (rowsAffected == 1) {
+                    if (rowsAffected > 0) {
                         // UPDATE INDEXES
                         DeleteFromIndexes(entity);
 
@@ -520,7 +520,7 @@ namespace AdoCache {
 
                 using (SqlCommand command = new SqlCommand(query, conn)) {
                     int rowsAffected = command.ExecuteNonQuery();
-                    if (rowsAffected == 1) {
+                    if (rowsAffected > 0) {
                         _entities.Remove(entity);
                         DeleteFromIndexes(entity);
 
