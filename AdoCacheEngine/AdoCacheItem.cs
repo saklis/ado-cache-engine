@@ -1151,11 +1151,20 @@ namespace AdoCache
                 WherePart sql         = new WhereBuilder().ToSql(clause);
                 string    whereClause = sql.Sql;
 
-                SqlCommand command = new SqlCommand($"SELECT * FROM {TableName} WHERE {whereClause}", conn);
+                SqlCommand command = new SqlCommand("", conn); // actual command text assigned below
                 foreach (KeyValuePair<string, object> pair in sql.Parameters)
                 {
-                    command.Parameters.AddWithValue($"@{pair.Key}", pair.Value ?? "NULL");
+                    if (pair.Value == null)
+                    {
+                        whereClause = whereClause.Replace($"@{pair.Key}", $"NULL");
+                    }
+                    else
+                    {
+                        command.Parameters.AddWithValue($"@{pair.Key}", pair.Value);
+                    }
                 }
+
+                command.CommandText = $"SELECT * FROM {TableName} WHERE {whereClause}";
 
                 using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                 {
