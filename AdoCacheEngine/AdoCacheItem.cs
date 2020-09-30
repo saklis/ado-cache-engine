@@ -1148,21 +1148,29 @@ namespace AdoCache
 
             try
             {
-                DataTable table = null;
-
-<<<<<<< HEAD
                 using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
 
+                    DataTable table = null;
+
                     sql         = new WhereBuilder().ToSql(clause);
                     whereClause = sql.Sql;
 
-                    SqlCommand command = new SqlCommand($"SELECT * FROM {TableName} WHERE {whereClause}", conn);
+                    SqlCommand command = new SqlCommand("", conn); // actual command text assigned below
                     foreach (KeyValuePair<string, object> pair in sql.Parameters)
                     {
-                        command.Parameters.AddWithValue($"@{pair.Key}", pair.Value ?? DBNull.Value);
+                        if (pair.Value == null)
+                        {
+                            whereClause = whereClause.Replace($"@{pair.Key}", $"NULL");
+                        }
+                        else
+                        {
+                            command.Parameters.AddWithValue($"@{pair.Key}", pair.Value);
+                        }
                     }
+
+                    command.CommandText = $"SELECT * FROM {TableName} WHERE {whereClause}";
 
                     using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
@@ -1170,34 +1178,8 @@ namespace AdoCache
                         adapter.Fill(table);
                     }
 
-                    conn.Close();
-=======
-                WherePart sql         = new WhereBuilder().ToSql(clause);
-                string    whereClause = sql.Sql;
-
-                SqlCommand command = new SqlCommand("", conn); // actual command text assigned below
-                foreach (KeyValuePair<string, object> pair in sql.Parameters)
-                {
-                    if (pair.Value == null)
-                    {
-                        whereClause = whereClause.Replace($"@{pair.Key}", $"NULL");
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue($"@{pair.Key}", pair.Value);
-                    }
+                    return GetEntityList(table);
                 }
-
-                command.CommandText = $"SELECT * FROM {TableName} WHERE {whereClause}";
-
-                using (SqlDataAdapter adapter = new SqlDataAdapter(command))
-                {
-                    table = new DataTable(TableName);
-                    adapter.Fill(table);
->>>>>>> 1500bfa1244e9d6ce2de0eec973bb220de0e345f
-                }
-
-                return GetEntityList(table);
             }
             catch (SqlException ex)
             {
