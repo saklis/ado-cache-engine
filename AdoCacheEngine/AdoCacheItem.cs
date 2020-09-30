@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -1142,31 +1143,66 @@ namespace AdoCache
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesWhere(Expression<Func<TEntity, bool>> clause)
         {
-            DataTable table = null;
+            WherePart sql = null;
+            string whereClause = "";
 
-            using (SqlConnection conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
+                DataTable table = null;
 
+<<<<<<< HEAD
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    sql         = new WhereBuilder().ToSql(clause);
+                    whereClause = sql.Sql;
+
+                    SqlCommand command = new SqlCommand($"SELECT * FROM {TableName} WHERE {whereClause}", conn);
+                    foreach (KeyValuePair<string, object> pair in sql.Parameters)
+                    {
+                        command.Parameters.AddWithValue($"@{pair.Key}", pair.Value ?? DBNull.Value);
+                    }
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        table = new DataTable(TableName);
+                        adapter.Fill(table);
+                    }
+
+                    conn.Close();
+=======
                 WherePart sql         = new WhereBuilder().ToSql(clause);
                 string    whereClause = sql.Sql;
 
-                SqlCommand command = new SqlCommand($"SELECT * FROM {TableName} WHERE {whereClause}", conn);
+                SqlCommand command = new SqlCommand("", conn); // actual command text assigned below
                 foreach (KeyValuePair<string, object> pair in sql.Parameters)
                 {
-                    command.Parameters.AddWithValue($"@{pair.Key}", pair.Value ?? "NULL");
+                    if (pair.Value == null)
+                    {
+                        whereClause = whereClause.Replace($"@{pair.Key}", $"NULL");
+                    }
+                    else
+                    {
+                        command.Parameters.AddWithValue($"@{pair.Key}", pair.Value);
+                    }
                 }
+
+                command.CommandText = $"SELECT * FROM {TableName} WHERE {whereClause}";
 
                 using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                 {
                     table = new DataTable(TableName);
                     adapter.Fill(table);
+>>>>>>> 1500bfa1244e9d6ce2de0eec973bb220de0e345f
                 }
 
-                conn.Close();
+                return GetEntityList(table);
             }
-
-            return GetEntityList(table);
+            catch (SqlException ex)
+            {
+                throw new Exception($"SQLException! Query: SELECT * FROM {TableName} WHERE {whereClause}; sql: {sql.Sql}; params: ({string.Join("; ", sql.Parameters.Select(p => $"{p.Key}, {p.Value}").ToList())})", ex);
+            }
         }
 
         /// <summary>
