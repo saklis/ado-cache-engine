@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -1090,32 +1089,57 @@ namespace AdoCache
                                                               conn.Open();
                                                               string whereClause = sql.Sql;
 
+                                                              SqlCommand sqlCommand = new SqlCommand("", conn);
+
                                                               foreach (ReplaceInfo info in replaceInfos)
                                                               {
                                                                   info.NewString =
-                                                                      info.IsString
-                                                                          ? $"'{info.Property.GetValue(entity)}'"
-                                                                          : info.Property.GetValue(entity).ToString();
+                                                                      info.NewString =
+                                                                          info.Property.GetValue(entity) == null
+                                                                              ? "NULL"
+                                                                              : $"@{info.Field}";
+                                                                  //info.IsString
+                                                                  //    ? $"'{info.Property.GetValue(entity)}'"
+                                                                  //    : info.Property.GetValue(entity).ToString();
                                                                   whereClause =
                                                                       whereClause.Replace(info.OldString, info.NewString);
+
+                                                                  if (info.Property.GetValue(entity) != null)
+                                                                  {
+                                                                      sqlCommand.Parameters.AddWithValue($"@{info.Field}",
+                                                                                                         info.Property
+                                                                                                             .GetValue(entity));
+                                                                  }
                                                               }
 
                                                               foreach (KeyValuePair<string, object> parameter in sql.Parameters)
                                                               {
-                                                                  whereClause =
-                                                                      whereClause.Replace($"@{parameter.Key}",
-                                                                                          $"{(parameter.Value == null ? "NULL" : $"'{parameter.Value.ToString().Replace("\"", "")}'")}");
+                                                                  if (parameter.Value == null)
+                                                                  {
+                                                                      whereClause =
+                                                                          whereClause.Replace($"@{parameter.Key}", "NULL");
+                                                                  }
+                                                                  else
+                                                                  {
+                                                                      //whereClause =
+                                                                      //    whereClause.Replace($"@{parameter.Key}",
+                                                                      //                        $"'{parameter.Value.ToString().Replace("\"", "")}'");
+                                                                      sqlCommand.Parameters.AddWithValue($"@{parameter.Key}",
+                                                                                                         parameter.Value);
+                                                                  }
                                                               }
 
+                                                              // fixes for things I couldn't figure out how to do better at this point...
                                                               whereClause = whereClause
                                                                             .Replace("[", "").Replace("]", "")
-                                                                            .Replace($"{typeName}.", "");
+                                                                            .Replace($"{typeName}.", "")
+                                                                            .Replace("= NULL", "IS NULL")
+                                                                            .Replace("<> NULL", "IS NOT NULL");
 
-                                                              string queryContent =
+                                                              sqlCommand.CommandText =
                                                                   $"SELECT * FROM {TableName} WHERE {whereClause}";
                                                               DataTable table = null;
-                                                              using (SqlDataAdapter adapter =
-                                                                  new SqlDataAdapter(queryContent, conn))
+                                                              using (SqlDataAdapter adapter = new SqlDataAdapter(sqlCommand))
                                                               {
                                                                   table = new DataTable(TableName);
                                                                   adapter.Fill(table);
@@ -1143,8 +1167,8 @@ namespace AdoCache
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesWhere(Expression<Func<TEntity, bool>> clause)
         {
-            WherePart sql = null;
-            string whereClause = "";
+            WherePart sql         = null;
+            string    whereClause = "";
 
             try
             {
@@ -1162,7 +1186,7 @@ namespace AdoCache
                     {
                         if (pair.Value == null)
                         {
-                            whereClause = whereClause.Replace($"@{pair.Key}", $"NULL");
+                            whereClause = whereClause.Replace($"@{pair.Key}", "NULL");
                         }
                         else
                         {
@@ -1183,7 +1207,9 @@ namespace AdoCache
             }
             catch (SqlException ex)
             {
-                throw new Exception($"SQLException! Query: SELECT * FROM {TableName} WHERE {whereClause}; sql: {sql.Sql}; params: ({string.Join("; ", sql.Parameters.Select(p => $"{p.Key}, {p.Value}").ToList())})", ex);
+                throw new
+                    Exception($"SQLException! Query: SELECT * FROM {TableName} WHERE {whereClause}; sql: {sql.Sql}; params: ({string.Join("; ", sql.Parameters.Select(p => $"{p.Key}, {p.Value}").ToList())})",
+                              ex);
             }
         }
 
