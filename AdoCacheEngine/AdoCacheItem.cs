@@ -1098,9 +1098,6 @@ namespace AdoCache
                                                                           info.Property.GetValue(entity) == null
                                                                               ? "NULL"
                                                                               : $"@{info.Field}";
-                                                                  //info.IsString
-                                                                  //    ? $"'{info.Property.GetValue(entity)}'"
-                                                                  //    : info.Property.GetValue(entity).ToString();
                                                                   whereClause =
                                                                       whereClause.Replace(info.OldString, info.NewString);
 
@@ -1121,9 +1118,6 @@ namespace AdoCache
                                                                   }
                                                                   else
                                                                   {
-                                                                      //whereClause =
-                                                                      //    whereClause.Replace($"@{parameter.Key}",
-                                                                      //                        $"'{parameter.Value.ToString().Replace("\"", "")}'");
                                                                       sqlCommand.Parameters.AddWithValue($"@{parameter.Key}",
                                                                                                          parameter.Value);
                                                                   }
