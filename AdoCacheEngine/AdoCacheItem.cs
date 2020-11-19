@@ -536,7 +536,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get entity from dictionary.
+        ///     Execute entity from dictionary.
         /// </summary>
         /// <param name="nameOfColumn">Name of column.</param>
         /// <param name="value">Value of key field.</param>
@@ -572,7 +572,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get dictionary for  column.
+        ///     Execute dictionary for  column.
         /// </summary>
         /// <param name="nameOfColumn">Name of column that dictionary is based on.</param>
         /// <returns>Dictionary - a collection of KeyValuePair objects optimized for quick access by object's key.</returns>
@@ -582,7 +582,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get index for column.
+        ///     Execute index for column.
         /// </summary>
         /// <param name="nameOfColumn">Name of column that index is based on.</param>
         /// <returns>Index - list of references sorted by column.</returns>
@@ -613,11 +613,11 @@ namespace AdoCache
 
             // create instance of TEntity while passing 'true' to isManagedByCacheEngine
             TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity),
-                                                                   BindingFlags.Instance | BindingFlags.NonPublic, null,
-                                                                   new object[]
-                                                                   {
-                                                                       true
-                                                                   }, null, null);
+                BindingFlags.Instance | BindingFlags.NonPublic, null,
+                new object[]
+                {
+                    true
+                }, null, null);
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
@@ -649,7 +649,7 @@ namespace AdoCache
                         {
                             throw new
                                 InvalidOperationException($"Column(s) {string.Join<PropertyInfo>(", ", _autoIncrementColumns)} are marked with [AutoIncrement] attribute, but db engine did not return scope identity after Insert(). DATA ARE INCONSISTENT.",
-                                                          ex);
+                                    ex);
                         }
                     }
 
@@ -672,7 +672,7 @@ namespace AdoCache
                     else
                     {
                         foreach (PropertyInfo info in _columns
-                                                      .Except(_keyColumns).Except(_autoIncrementColumns).Except(_readOnlyColumns))
+                            .Except(_keyColumns).Except(_autoIncrementColumns).Except(_readOnlyColumns))
                         {
                             info.SetValue(newEntity, info.GetValue(entity));
                         }
@@ -927,7 +927,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get list of entities for table.
+        ///     Execute list of entities for table.
         /// </summary>
         /// <param name="table">Table name.</param>
         /// <returns>List of entities.</returns>
@@ -1053,7 +1053,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get Entities from database.
+        ///     Execute Entities from database.
         /// </summary>
         /// <typeparam name="TRelation">Type of cached entity that is base for loading data.</typeparam>
         /// <param name="cachedItem">Cached item object that is used as base for loading data.</param>
@@ -1155,7 +1155,7 @@ namespace AdoCache
         }
 
         /// <summary>
-        ///     Get Entities from database.
+        ///     Execute Entities from database.
         /// </summary>
         /// <param name="clause">Where clause.</param>
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>

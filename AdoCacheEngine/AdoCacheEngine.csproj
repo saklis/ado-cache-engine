@@ -59,6 +59,11 @@
     <Compile Include="ConcurrentAdoCacheEngine.cs" />
     <Compile Include="ConcurrentAdoCacheItem.cs" />
     <Compile Include="EntityComparer.cs" />
+    <Compile Include="ORM\Database.cs" />
+    <Compile Include="ORM\Delete.cs" />
+    <Compile Include="ORM\Insert.cs" />
+    <Compile Include="ORM\Select.cs" />
+    <Compile Include="ORM\Update.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ryanohs\WhereBuilder.cs" />
     <Compile Include="ryanohs\WherePart.cs" />

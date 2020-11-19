@@ -89,7 +89,7 @@ namespace AdoCache {
         }
 
         /// <summary>
-        ///     Get cached item.
+        ///     Execute cached item.
         /// </summary>
         /// <typeparam name="TEntity">Cached type inheriting from AdoCacheEntity.</typeparam>
         /// <exception cref="InvalidOperationException">Thrown when CacheItem for supplied type does not exists.</exception>
