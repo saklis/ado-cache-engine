@@ -1,4 +1,5 @@
 /.vs/
+/.cr/
 /AdoCacheEngine/bin
 /AdoCacheEngine/obj
 /packages/
