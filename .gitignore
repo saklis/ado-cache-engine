@@ -1,7 +1,9 @@
 /.vs/
 /.cr/
 /.idea/
-/AdoCacheEngine/bin
-/AdoCacheEngine/obj
+/AdoCacheEngine/bin/
+/AdoCacheEngine/obj/
+/AdoCacheEngine-netstd/bin/
+/AdoCacheEngine-netstd/obj/
 /packages/
 /TestConsoleApp/

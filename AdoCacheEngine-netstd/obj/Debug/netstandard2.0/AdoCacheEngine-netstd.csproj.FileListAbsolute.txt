@@ -1,9 +1,0 @@
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine-netstd.AssemblyInfoInputs.cache
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine-netstd.AssemblyInfo.cs
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine-netstd.csproj.CoreCompileInputs.cache
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\bin\Debug\netstandard2.0\AdoCacheEngine.deps.json
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\bin\Debug\netstandard2.0\AdoCacheEngine.dll
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\bin\Debug\netstandard2.0\AdoCacheEngine.pdb
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine.dll
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine.pdb
-C:\GitHub\ado-cache-engine\AdoCacheEngine-netstd\obj\Debug\netstandard2.0\AdoCacheEngine-netstd.csprojAssemblyReference.cache

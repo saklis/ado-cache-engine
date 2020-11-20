@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdoCacheEngine", "AdoCacheE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestConsoleApp", "TestConsoleApp\TestConsoleApp.csproj", "{0A8E693F-6AA8-403C-A015-917E6007382B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdoCacheEngine-netstd", "AdoCacheEngine-netstd\AdoCacheEngine-netstd.csproj", "{EA6C043A-8509-4D10-B2EC-A4E460795D7A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdoCacheEngine-netstd", "AdoCacheEngine-netstd\AdoCacheEngine-netstd.csproj", "{EA6C043A-8509-4D10-B2EC-A4E460795D7A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
