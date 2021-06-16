@@ -36,19 +36,23 @@ namespace AdoCache
         public AdoCacheItem(string connectionString, AdoCacheItemOptions options)
         {
             string tableName = string.IsNullOrWhiteSpace(options?.OverrideTableName)
-                                   ? (typeof(TEntity).GetCustomAttributes(typeof(TableNameAttribute), false)[0] as
-                                          TableNameAttribute)?.TableName
-                                   : options.OverrideTableName;
-            if (string.IsNullOrWhiteSpace(tableName)) throw new ArgumentException("Could not deduce table name.");
+                ? (typeof(TEntity).GetCustomAttributes(typeof(TableNameAttribute), false)[0] as
+                    TableNameAttribute)?.TableName
+                : options.OverrideTableName;
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                throw new ArgumentException("Could not deduce table name.");
+            }
+
             TableName = tableName;
 
             _connectionString = connectionString;
 
             _columns = typeof(TEntity).GetProperties().Where(p => p.CanWrite).ToArray();
             FieldInfo[] newValueFields = typeof(TEntity).GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-                                                        .Where(f => f.CustomAttributes.Any(ca => ca.AttributeType ==
-                                                                                                 typeof(NewValueFieldAttribute)))
-                                                        .ToArray();
+                .Where(f => f.CustomAttributes.Any(ca => ca.AttributeType ==
+                                                         typeof(NewValueFieldAttribute)))
+                .ToArray();
             foreach (PropertyInfo column in _columns)
             {
                 FieldInfo field =
@@ -58,13 +62,13 @@ namespace AdoCache
 
             _keyColumns = _columns.Where(p => p.CustomAttributes.Any(ca => ca.AttributeType == typeof(KeyAttribute))).ToArray();
             _autoIncrementColumns = _columns
-                                    .Where(p => p.CustomAttributes.Any(ca => ca.AttributeType == typeof(AutoIncrementAttribute)))
-                                    .ToArray();
+                .Where(p => p.CustomAttributes.Any(ca => ca.AttributeType == typeof(AutoIncrementAttribute)))
+                .ToArray();
             if (options != null && options.EnableReadOnlyColumnsSupport)
             {
                 _readOnlyColumns = _columns
-                                   .Where(p => p.CustomAttributes.Any(ca => ca.AttributeType == typeof(ReadOnlyAttribute)))
-                                   .Where(c => !_autoIncrementColumns.Contains(c)).ToArray();
+                    .Where(p => p.CustomAttributes.Any(ca => ca.AttributeType == typeof(ReadOnlyAttribute)))
+                    .Where(c => !_autoIncrementColumns.Contains(c)).ToArray();
             }
 
             if (_columns == null || _columns.Length == 0)
@@ -196,7 +200,7 @@ namespace AdoCache
             if (property == null)
             {
                 throw new ArgumentOutOfRangeException(nameOfColumn,
-                                                      $"Type {typeof(TEntity).Name} does not have a property named {nameOfColumn}");
+                    $"Type {typeof(TEntity).Name} does not have a property named {nameOfColumn}");
             }
 
             ConcurrentDictionary<object, TEntity> newDictionary = new ConcurrentDictionary<object, TEntity>();
@@ -227,7 +231,7 @@ namespace AdoCache
             if (property == null)
             {
                 throw new ArgumentOutOfRangeException(nameOfColumn,
-                                                      $"Type {typeof(TEntity).Name} does not have a property named {nameOfColumn}");
+                    $"Type {typeof(TEntity).Name} does not have a property named {nameOfColumn}");
             }
 
             ConcurrentDictionary<object, List<TEntity>> newIndex = new ConcurrentDictionary<object, List<TEntity>>();
@@ -239,8 +243,8 @@ namespace AdoCache
 
             foreach (TEntity entity in _entities)
             {
-                object        value = property.GetValue(entity);
-                List<TEntity> list  = newIndex.GetOrAdd(value ?? DBNull.Value, new List<TEntity>());
+                object value = property.GetValue(entity);
+                List<TEntity> list = newIndex.GetOrAdd(value ?? DBNull.Value, new List<TEntity>());
                 list.Add(entity);
             }
         }
@@ -296,8 +300,8 @@ namespace AdoCache
         ///     - OR -
         ///     Thrown when data loading process is already underway.
         /// </exception>
-        public void LoadRelatedWith<TRelation>(AdoCacheItem<TRelation>                    cachedItem,
-                                               Expression<Func<TEntity, TRelation, bool>> clause)
+        public void LoadRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem,
+            Expression<Func<TEntity, TRelation, bool>> clause)
             where TRelation : AdoCacheEntity, new()
         {
             if (IsLoaded)
@@ -376,7 +380,7 @@ namespace AdoCache
                     _entities.Clear();
                     _entities.AddRange(newEntities);
 
-                    List<string> indexes      = _indexes.Keys.ToList();
+                    List<string> indexes = _indexes.Keys.ToList();
                     List<string> dictionaries = _dictionaries.Keys.ToList();
 
                     foreach (ConcurrentDictionary<object, List<TEntity>> index in _indexes.Values)
@@ -496,7 +500,7 @@ namespace AdoCache
             if (!entity.IsManagedByCacheEngine)
             {
                 throw new ArgumentOutOfRangeException(nameof(entity), entity,
-                                                      "Supplied entity is not managed by cache engine and can't be an delete operation argument.");
+                    "Supplied entity is not managed by cache engine and can't be an delete operation argument.");
             }
 
             string query = BuildDeleteQuery(entity);
@@ -521,7 +525,7 @@ namespace AdoCache
                         else
                         {
                             throw new ArgumentOutOfRangeException("_isManagedByCacheEngine", null,
-                                                                  "Unable to retrieve field '_isManagedByCacheEngine' from removed entity.");
+                                "Unable to retrieve field '_isManagedByCacheEngine' from removed entity.");
                         }
                     }
                     else
@@ -576,20 +580,14 @@ namespace AdoCache
         /// </summary>
         /// <param name="nameOfColumn">Name of column that dictionary is based on.</param>
         /// <returns>Dictionary - a collection of KeyValuePair objects optimized for quick access by object's key.</returns>
-        public virtual ConcurrentDictionary<object, TEntity> GetDictionary(string nameOfColumn)
-        {
-            return _dictionaries[nameOfColumn];
-        }
+        public virtual ConcurrentDictionary<object, TEntity> GetDictionary(string nameOfColumn) => _dictionaries[nameOfColumn];
 
         /// <summary>
         ///     Execute index for column.
         /// </summary>
         /// <param name="nameOfColumn">Name of column that index is based on.</param>
         /// <returns>Index - list of references sorted by column.</returns>
-        public virtual ConcurrentDictionary<object, List<TEntity>> GetIndex(string nameOfColumn)
-        {
-            return _indexes[nameOfColumn];
-        }
+        public virtual ConcurrentDictionary<object, List<TEntity>> GetIndex(string nameOfColumn) => _indexes[nameOfColumn];
 
         /// <summary>
         ///     Insert entity to to local cache and to data base.
@@ -614,10 +612,7 @@ namespace AdoCache
             // create instance of TEntity while passing 'true' to isManagedByCacheEngine
             TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity),
                 BindingFlags.Instance | BindingFlags.NonPublic, null,
-                new object[]
-                {
-                    true
-                }, null, null);
+                new object[] {true}, null, null);
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
@@ -648,7 +643,8 @@ namespace AdoCache
                         catch (InvalidCastException ex)
                         {
                             throw new
-                                InvalidOperationException($"Column(s) {string.Join<PropertyInfo>(", ", _autoIncrementColumns)} are marked with [AutoIncrement] attribute, but db engine did not return scope identity after Insert(). DATA ARE INCONSISTENT.",
+                                InvalidOperationException(
+                                    $"Column(s) {string.Join<PropertyInfo>(", ", _autoIncrementColumns)} are marked with [AutoIncrement] attribute, but db engine did not return scope identity after Insert(). DATA ARE INCONSISTENT.",
                                     ex);
                         }
                     }
@@ -719,7 +715,7 @@ namespace AdoCache
             if (!entity.IsManagedByCacheEngine)
             {
                 throw new ArgumentOutOfRangeException(nameof(entity), entity,
-                                                      "Supplied entity is not managed by cache engine and can't be used in update operation.");
+                    "Supplied entity is not managed by cache engine and can't be used in update operation.");
             }
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
@@ -735,7 +731,10 @@ namespace AdoCache
                         // UPDATE INDEXES
                         DeleteFromIndexes(entity);
 
-                        if (_readOnlyColumns != null) UpdateReadOnlyColumn(entity, conn);
+                        if (_readOnlyColumns != null)
+                        {
+                            UpdateReadOnlyColumn(entity, conn);
+                        }
 
                         MethodInfo copyNewValuesMethod =
                             typeof(TEntity).GetMethod("CopyNewValues", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -747,7 +746,8 @@ namespace AdoCache
                     else
                     {
                         throw new
-                            InvalidOperationException($"There was an unexpected result while Updating data in data base. Entity key could not be located or is duplicated. Affected rows: {rowsAffected}");
+                            InvalidOperationException(
+                                $"There was an unexpected result while Updating data in data base. Entity key could not be located or is duplicated. Affected rows: {rowsAffected}");
                     }
                 }
 
@@ -819,11 +819,14 @@ namespace AdoCache
         {
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
-            PropertyInfo[] cols                = _columns.Where(c => !_autoIncrementColumns.Contains(c)).ToArray();
-            if (_readOnlyColumns != null) cols = cols.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
+            PropertyInfo[] cols = _columns.Where(c => !_autoIncrementColumns.Contains(c)).ToArray();
+            if (_readOnlyColumns != null)
+            {
+                cols = cols.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
+            }
 
-            string query =
-                $"INSERT INTO {TableName}({string.Join(", ", cols.Select(c => c.Name).ToArray())}) VALUES({string.Join(", ", cols.Select(c => "@" + c.Name).ToArray())});SELECT SCOPE_IDENTITY();";
+            // SELECT @@IDENTITY works just because each INSERT is done through separate connection, which counts as separate session. If this change, SCOPE_IDENTITY() should be used to solve concurrency issues.
+            string query = $"INSERT INTO {TableName}({string.Join(", ", cols.Select(c => c.Name).ToArray())}) VALUES({string.Join(", ", cols.Select(c => "@" + c.Name).ToArray())});SELECT @@IDENTITY";
 
             SqlCommand cmd = new SqlCommand(query, conn);
             foreach (PropertyInfo col in cols)
@@ -872,9 +875,13 @@ namespace AdoCache
 
             string query = "UPDATE " + TableName + " SET ";
 
-            PropertyInfo[] colsToUpdate                = _columns.Where(c => !_keyColumns.Contains(c)).ToArray();
-            if (_readOnlyColumns != null) colsToUpdate = colsToUpdate.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
-            List<string> setClauses                    = new List<string>(colsToUpdate.Length);
+            PropertyInfo[] colsToUpdate = _columns.Where(c => !_keyColumns.Contains(c)).ToArray();
+            if (_readOnlyColumns != null)
+            {
+                colsToUpdate = colsToUpdate.Where(c => !_readOnlyColumns.Contains(c)).ToArray();
+            }
+
+            List<string> setClauses = new List<string>(colsToUpdate.Length);
             foreach (PropertyInfo property in colsToUpdate)
             {
                 setClauses.Add($"{property.Name} = @{property.Name} ");
@@ -920,7 +927,10 @@ namespace AdoCache
             foreach (TEntity orgEntity in orgList)
             {
                 dynamic orgValue = key.GetValue(orgEntity);
-                if (orgValue == entityValue) filteredList.Add(orgEntity);
+                if (orgValue == entityValue)
+                {
+                    filteredList.Add(orgEntity);
+                }
             }
 
             return filteredList;
@@ -939,11 +949,8 @@ namespace AdoCache
             {
                 // create instance of TEntity while passing 'true' to isManagedByCacheEngine
                 TEntity newEntity = (TEntity) Activator.CreateInstance(typeof(TEntity),
-                                                                       BindingFlags.Instance | BindingFlags.NonPublic, null,
-                                                                       new object[]
-                                                                       {
-                                                                           true
-                                                                       }, null, null);
+                    BindingFlags.Instance | BindingFlags.NonPublic, null,
+                    new object[] {true}, null, null);
 
                 foreach (DataColumn column in table.Columns)
                 {
@@ -980,12 +987,20 @@ namespace AdoCache
         /// <returns>List of indexes.</returns>
         private List<int> AllIndexesOf(string str, string value)
         {
-            if (string.IsNullOrEmpty(value)) throw new ArgumentException("The string to find cannot be empty", nameof(value));
+            if (string.IsNullOrEmpty(value))
+            {
+                throw new ArgumentException("The string to find cannot be empty", nameof(value));
+            }
+
             List<int> indexes = new List<int>();
             for (int index = 0;; index += value.Length)
             {
                 index = str.IndexOf(value, index);
-                if (index == -1) return indexes;
+                if (index == -1)
+                {
+                    return indexes;
+                }
+
                 indexes.Add(index);
             }
         }
@@ -999,8 +1014,11 @@ namespace AdoCache
             foreach (KeyValuePair<string, ConcurrentDictionary<object, List<TEntity>>> index in _indexes)
             {
                 PropertyInfo property = typeof(TEntity).GetProperty(index.Key);
-                object       value    = property.GetValue(entity);
-                if (index.Value.TryGetValue(value ?? DBNull.Value, out List<TEntity> list)) list.Remove(entity);
+                object value = property.GetValue(entity);
+                if (index.Value.TryGetValue(value ?? DBNull.Value, out List<TEntity> list))
+                {
+                    list.Remove(entity);
+                }
             }
 
             foreach (KeyValuePair<string, ConcurrentDictionary<object, TEntity>> dictionary in _dictionaries)
@@ -1022,7 +1040,10 @@ namespace AdoCache
                 filtered = FilterOutNotMatchingKeys(filtered, key, entity);
             }
 
-            if (filtered.Count == 1) return filtered[0];
+            if (filtered.Count == 1)
+            {
+                return filtered[0];
+            }
 
             return null;
         }
@@ -1064,15 +1085,15 @@ namespace AdoCache
         ///     Thrown when expression has unexpected number of parameters.
         /// </exception>
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
-        private List<TEntity> GetEntitiesRelatedWith<TRelation>(AdoCacheItem<TRelation>                    cachedItem,
-                                                                Expression<Func<TEntity, TRelation, bool>> clause)
+        private List<TEntity> GetEntitiesRelatedWith<TRelation>(AdoCacheItem<TRelation> cachedItem,
+            Expression<Func<TEntity, TRelation, bool>> clause)
             where TRelation : AdoCacheEntity, new()
         {
-            string                 typeName     = typeof(TEntity).Name;
+            string typeName = typeof(TEntity).Name;
             ConcurrentBag<TEntity> entitiesList = new ConcurrentBag<TEntity>();
 
-            WherePart sql  = new WhereBuilder().ExpressionToSql(clause.Body);
-            string    type = typeof(TRelation).Name;
+            WherePart sql = new WhereBuilder().ExpressionToSql(clause.Body);
+            string type = typeof(TRelation).Name;
             if (sql.Sql.Contains(type))
             {
                 List<ReplaceInfo> replaceInfos = ReplaceInfo.AllIndexesOf(sql.Sql, type);
@@ -1083,71 +1104,71 @@ namespace AdoCache
                 }
 
                 Parallel.ForEach(cachedItem.Entities, entity =>
-                                                      {
-                                                          using (SqlConnection conn = new SqlConnection(_connectionString))
-                                                          {
-                                                              conn.Open();
-                                                              string whereClause = sql.Sql;
+                {
+                    using (SqlConnection conn = new SqlConnection(_connectionString))
+                    {
+                        conn.Open();
+                        string whereClause = sql.Sql;
 
-                                                              SqlCommand sqlCommand = new SqlCommand("", conn);
+                        SqlCommand sqlCommand = new SqlCommand("", conn);
 
-                                                              foreach (ReplaceInfo info in replaceInfos)
-                                                              {
-                                                                  info.NewString =
-                                                                      info.NewString =
-                                                                          info.Property.GetValue(entity) == null
-                                                                              ? "NULL"
-                                                                              : $"@{info.Field}";
-                                                                  whereClause =
-                                                                      whereClause.Replace(info.OldString, info.NewString);
+                        foreach (ReplaceInfo info in replaceInfos)
+                        {
+                            info.NewString =
+                                info.NewString =
+                                    info.Property.GetValue(entity) == null
+                                        ? "NULL"
+                                        : $"@{info.Field}";
+                            whereClause =
+                                whereClause.Replace(info.OldString, info.NewString);
 
-                                                                  if (info.Property.GetValue(entity) != null)
-                                                                  {
-                                                                      sqlCommand.Parameters.AddWithValue($"@{info.Field}",
-                                                                                                         info.Property
-                                                                                                             .GetValue(entity));
-                                                                  }
-                                                              }
+                            if (info.Property.GetValue(entity) != null)
+                            {
+                                sqlCommand.Parameters.AddWithValue($"@{info.Field}",
+                                    info.Property
+                                        .GetValue(entity));
+                            }
+                        }
 
-                                                              foreach (KeyValuePair<string, object> parameter in sql.Parameters)
-                                                              {
-                                                                  if (parameter.Value == null)
-                                                                  {
-                                                                      whereClause =
-                                                                          whereClause.Replace($"@{parameter.Key}", "NULL");
-                                                                  }
-                                                                  else
-                                                                  {
-                                                                      sqlCommand.Parameters.AddWithValue($"@{parameter.Key}",
-                                                                                                         parameter.Value);
-                                                                  }
-                                                              }
+                        foreach (KeyValuePair<string, object> parameter in sql.Parameters)
+                        {
+                            if (parameter.Value == null)
+                            {
+                                whereClause =
+                                    whereClause.Replace($"@{parameter.Key}", "NULL");
+                            }
+                            else
+                            {
+                                sqlCommand.Parameters.AddWithValue($"@{parameter.Key}",
+                                    parameter.Value);
+                            }
+                        }
 
-                                                              // fixes for things I couldn't figure out how to do better at this point...
-                                                              whereClause = whereClause
-                                                                            .Replace("[", "").Replace("]", "")
-                                                                            .Replace($"{typeName}.", "")
-                                                                            .Replace("= NULL", "IS NULL")
-                                                                            .Replace("<> NULL", "IS NOT NULL");
+                        // fixes for things I couldn't figure out how to do better at this point...
+                        whereClause = whereClause
+                            .Replace("[", "").Replace("]", "")
+                            .Replace($"{typeName}.", "")
+                            .Replace("= NULL", "IS NULL")
+                            .Replace("<> NULL", "IS NOT NULL");
 
-                                                              sqlCommand.CommandText =
-                                                                  $"SELECT * FROM {TableName} WHERE {whereClause}";
-                                                              DataTable table = null;
-                                                              using (SqlDataAdapter adapter = new SqlDataAdapter(sqlCommand))
-                                                              {
-                                                                  table = new DataTable(TableName);
-                                                                  adapter.Fill(table);
-                                                              }
+                        sqlCommand.CommandText =
+                            $"SELECT * FROM {TableName} WHERE {whereClause}";
+                        DataTable table = null;
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(sqlCommand))
+                        {
+                            table = new DataTable(TableName);
+                            adapter.Fill(table);
+                        }
 
-                                                              List<TEntity> entities = GetEntityList(table);
-                                                              foreach (TEntity ent in entities)
-                                                              {
-                                                                  entitiesList.Add(ent);
-                                                              }
+                        List<TEntity> entities = GetEntityList(table);
+                        foreach (TEntity ent in entities)
+                        {
+                            entitiesList.Add(ent);
+                        }
 
-                                                              conn.Close();
-                                                          }
-                                                      });
+                        conn.Close();
+                    }
+                });
             }
 
             List<TEntity> list = entitiesList.ToList();
@@ -1161,8 +1182,8 @@ namespace AdoCache
         /// <returns>The <see cref="List{T}" /> list of Entities.</returns>
         private List<TEntity> GetEntitiesWhere(Expression<Func<TEntity, bool>> clause)
         {
-            WherePart sql         = null;
-            string    whereClause = "";
+            WherePart sql = null;
+            string whereClause = "";
 
             try
             {
@@ -1172,7 +1193,7 @@ namespace AdoCache
 
                     DataTable table = null;
 
-                    sql         = new WhereBuilder().ToSql(clause);
+                    sql = new WhereBuilder().ToSql(clause);
                     whereClause = sql.Sql;
 
                     SqlCommand command = new SqlCommand("", conn); // actual command text assigned below
@@ -1202,8 +1223,9 @@ namespace AdoCache
             catch (SqlException ex)
             {
                 throw new
-                    Exception($"SQLException! Query: SELECT * FROM {TableName} WHERE {whereClause}; sql: {sql.Sql}; params: ({string.Join("; ", sql.Parameters.Select(p => $"{p.Key}, {p.Value}").ToList())})",
-                              ex);
+                    Exception(
+                        $"SQLException! Query: SELECT * FROM {TableName} WHERE {whereClause}; sql: {sql.Sql}; params: ({string.Join("; ", sql.Parameters.Select(p => $"{p.Key}, {p.Value}").ToList())})",
+                        ex);
             }
         }
 
@@ -1215,9 +1237,9 @@ namespace AdoCache
         {
             foreach (KeyValuePair<string, ConcurrentDictionary<object, List<TEntity>>> index in _indexes)
             {
-                PropertyInfo  property = typeof(TEntity).GetProperty(index.Key);
-                object        value    = property.GetValue(entity);
-                List<TEntity> list     = index.Value.GetOrAdd(value ?? DBNull.Value, new List<TEntity>());
+                PropertyInfo property = typeof(TEntity).GetProperty(index.Key);
+                object value = property.GetValue(entity);
+                List<TEntity> list = index.Value.GetOrAdd(value ?? DBNull.Value, new List<TEntity>());
                 list.Add(entity);
             }
 
@@ -1244,7 +1266,10 @@ namespace AdoCache
                     using (SqlDataReader dataReader = command.ExecuteReader())
                     {
                         dataReader.Read();
-                        if ((int) dataReader[0] == 1) result = true;
+                        if ((int) dataReader[0] == 1)
+                        {
+                            result = true;
+                        }
                     }
                 }
 
